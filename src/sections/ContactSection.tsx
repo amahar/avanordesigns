@@ -23,21 +23,39 @@ export default function ContactSection() {
   const [form, setForm] = useState<FormData>(INITIAL_FORM)
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const set = (key: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => setForm((prev) => ({ ...prev, [key]: e.target.value }))
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (!e.currentTarget.reportValidity()) return
     setLoading(true)
-    // Structured for future backend — replace with API call here
-    setTimeout(() => {
-      setLoading(false)
+    setError('')
+    try {
+      const res = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          access_key: import.meta.env.VITE_WEB3FORMS_KEY,
+          subject: `New inquiry from ${form.name}`,
+          from_name: 'Avanor Designs website',
+          replyto: form.email,
+          ...form,
+        }),
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.message)
       setSent(true)
       setForm(INITIAL_FORM)
       setTimeout(() => setSent(false), 5000)
-    }, 800)
+    } catch {
+      setError('Something went wrong. Please email hello@avanordesigns.com directly.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const inputCls =
@@ -218,6 +236,7 @@ export default function ContactSection() {
               <p className="text-[12px] text-muted-2 text-center m-0">
                 By sending, you agree to a single follow-up email. We don't spam, ever.
               </p>
+              {error && <p className="text-[13px] text-red-600 text-center m-0">{error}</p>}
             </form>
           </Reveal>
         </div>
